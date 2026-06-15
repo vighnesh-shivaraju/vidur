@@ -1,23 +1,22 @@
-# New Logic for Speculative Decoding
+#using speculative decoding
 def run_iteration(self, batch):
-    # A. Define speculation window (e.g., K = 5 tokens)
+    #defining speculative tokens 'K'
     K = self.config.speculative_window
 
-    # B. Time taken by the smaller 'draft' model to guess K tokens
+    #time taken by draft model to guess k tokens
     draft_latency = self.draft_model_estimator.get_runtime(batch, num_tokens=K)
 
-    # C. Time for the main model to verify all K tokens in a single parallel pass
-    # Parallel verification is faster than K individual steps [6]
+    #training all tokens in parallel rather than doing in individual steps
     verify_latency = self.runtime_estimator.get_runtime(batch, num_tokens=K, is_verify=True)
 
-    # D. Determine how many tokens were actually accepted (e.g., 3 out of 5)
+    #determining actual number of accpeted tokens
     accepted_count = self.simulation_policy.get_accepted_tokens(batch, K)
 
-    # E. Update state with MULTIPLE tokens
+    #updating state with multiple tokens by adding multiple tokens
     for request in batch.requests:
-        request.on_tokens_generated(accepted_count) # Adds multiple tokens [6]
+        request.on_tokens_generated(accepted_count)
 
-    # F. Total time is the sum of both model passes
+    #total time is being made sum of time taken by draft and target model
     total_latency = draft_latency + verify_latency
     self.metrics_tracker.on_iteration_complete(total_latency)
     return total_latency
